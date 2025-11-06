@@ -1,8 +1,6 @@
 name: CI/CD Pipeline (DEV)
 
 # ----- Disparador (Trigger) de GitFlow -----
-# Esto le dice a GitHub que ejecute este pipeline CADA VEZ que haya
-# un 'push' (o un merge) en la rama 'develop'.
 on:
   push:
     branches:
@@ -18,7 +16,6 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     outputs:
-      # Definimos una "salida" para que el job de deploy sepa qué tag de imagen usar
       image_tag: ${{ steps.vars.outputs.tag }}
 
     steps:
@@ -28,36 +25,32 @@ jobs:
       - name: 2. Generar Tag único para la imagen
         id: vars
         run: |
-          # Creamos un tag basado en los primeros 7 caracteres del hash del commit
-          # Esto nos da un identificador único e inmutable para cada versión
           echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
 
       - name: 3. Iniciar sesión en Docker Hub
+        # Nota: 'docker/login-action' es el nombre nuevo, está perfecto.
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: 4. Construir y Subir (Push) la imagen a Docker Hub
+        # Nota: 'docker/build-push-action' es el nombre nuevo, está perfecto.
         uses: docker/build-push-action@v5
         with:
-          context: . # El contexto es la raíz (donde está el .sln)
-          dockerfile: MiApiAzure.Api/Dockerfile # Ruta a nuestro Dockerfile
-          push: true # ¡Queremos subirla!
-          # Subimos la imagen con dos tags:
-          # 1. El tag único (ej: .../mi-api-azure:a1b2c3d)
-          # 2. El tag estático (ej: .../mi-api-azure:latest-dev)
-          tags: |           
+          context: .
+          dockerfile: MiApiAzure.Api/Dockerfile
+          push: true
+          # ----- ¡AQUÍ ESTÁ LA CORRECCIÓN! -----
+          # No debe haber espacios después del '|'
+          tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }}
             ${{ env.IMAGE_NAME }}:latest-dev
 
   # ----- Job 2: Despliegue Continuo (CD) -----
   deploy-to-dev:
     runs-on: ubuntu-latest
-    # Le decimos a GitHub que este job DEPENDE de que 'build-and-push' termine CON ÉXITO
     needs: build-and-push
-
-    # Definimos el "entorno" (opcional pero buena práctica)
     environment:
       name: Development
       url: https://app-miapi-dev-lab.azurewebsites.net
@@ -66,35 +59,25 @@ jobs:
       - name: 1. Iniciar sesión en Azure
         uses: azure/login@v1
         with:
-          # Usamos el secreto JSON que creamos en la Parte A
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: 2. Desplegar en Azure App Service (DEV)
         uses: azure/webapps-deploy@v2
         with:
-          # El nombre de nuestro App Service
           app-name: "app-miapi-dev-lab"
-
-          # ¡La magia! Le decimos al App Service que jale (pull) la NUEVA
-          # imagen que acabamos de subir, identificada por su tag único.
           images: "${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}"
 
   # ----- Job 3: Notificación en Slack -----
   notify-slack:
     runs-on: ubuntu-latest
-    # Este job DEPENDE de los dos anteriores
     needs: [build-and-push, deploy-to-dev]
-    # ¡Importante! 'if: always()' hace que este job se ejecute
-    # INCLUSO SI los jobs anteriores fallaron, para poder notificar el error.
     if: always()
 
     steps:
       - name: Enviar notificación a Slack
         uses: 8398a7/action-slack@v3
         with:
-          # El estado de ESTE job (que será 'success' o 'failure' basado en los 'needs')
           status: ${{ job.status }}
-          # Qué campos incluir en el mensaje de Slack
           fields: repo,message,commit,author,job,took
           text: |
             *Informe del Pipeline de Desarrollo (MiApiAzure)*
@@ -102,5 +85,4 @@ jobs:
             :rocket: Job de Deploy: `${{ needs.deploy-to-dev.result }}`
             Imagen: `${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}`
         env:
-          # Usamos el secreto del webhook de Slack
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
