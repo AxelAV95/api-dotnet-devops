@@ -44,10 +44,10 @@ jobs:
           context: . # El contexto es la raíz (donde está el .sln)
           dockerfile: MiApiAzure.Api/Dockerfile # Ruta a nuestro Dockerfile
           push: true # ¡Queremos subirla!
-          tags: |
-            # Subimos la imagen con dos tags:
-            # 1. El tag único (ej: .../mi-api-azure:a1b2c3d)
-            # 2. El tag estático (ej: .../mi-api-azure:latest-dev)
+          # Subimos la imagen con dos tags:
+          # 1. El tag único (ej: .../mi-api-azure:a1b2c3d)
+          # 2. El tag estático (ej: .../mi-api-azure:latest-dev)
+          tags: |           
             ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }}
             ${{ env.IMAGE_NAME }}:latest-dev
 
