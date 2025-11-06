@@ -20,7 +20,7 @@ jobs:
     outputs:
       # Definimos una "salida" para que el job de deploy sepa qué tag de imagen usar
       image_tag: ${{ steps.vars.outputs.tag }}
-      
+
     steps:
       - name: 1. Checkout (Obtener el código)
         uses: actions/checkout@v4
@@ -56,12 +56,12 @@ jobs:
     runs-on: ubuntu-latest
     # Le decimos a GitHub que este job DEPENDE de que 'build-and-push' termine CON ÉXITO
     needs: build-and-push
-    
+
     # Definimos el "entorno" (opcional pero buena práctica)
     environment:
       name: Development
       url: https://app-miapi-dev-lab.azurewebsites.net
-      
+
     steps:
       - name: 1. Iniciar sesión en Azure
         uses: azure/login@v1
@@ -73,12 +73,12 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           # El nombre de nuestro App Service
-          app-name: 'app-miapi-dev-lab'
-          
+          app-name: "app-miapi-dev-lab"
+
           # ¡La magia! Le decimos al App Service que jale (pull) la NUEVA
           # imagen que acabamos de subir, identificada por su tag único.
-          images: '${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}'
-          
+          images: "${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}"
+
   # ----- Job 3: Notificación en Slack -----
   notify-slack:
     runs-on: ubuntu-latest
@@ -86,8 +86,8 @@ jobs:
     needs: [build-and-push, deploy-to-dev]
     # ¡Importante! 'if: always()' hace que este job se ejecute
     # INCLUSO SI los jobs anteriores fallaron, para poder notificar el error.
-    if: always() 
-    
+    if: always()
+
     steps:
       - name: Enviar notificación a Slack
         uses: 8398a7/action-slack@v3
