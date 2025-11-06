@@ -23,7 +23,7 @@ jobs:
       - name: 1. Checkout (Obtener el código)
         uses: actions/checkout@v4
 
-      - name: 2. Generar Tag único para la imagen
+      - name: 2. Generar tag único para la imagen
         id: vars
         run: |
           echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
