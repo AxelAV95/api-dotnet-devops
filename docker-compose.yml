@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # Servicio 1: Nuestra API de .NET
+  api:
+    build:
+      context: . # El contexto es el directorio actual
+      dockerfile: MiApiAzure.Api/Dockerfile # Ruta al Dockerfile
+    container_name: miapi-local
+    ports:
+      # Mapea el puerto 8080 local al 8080 del contenedor
+      - "8080:8080" 
+    environment:
+      # Pasamos la cadena de conexión a la API.
+      # Docker Compose crea una red interna; 'db' es el nombre DNS del servicio SQL.
+      - ConnectionStrings__DefaultConnection=Server=db;Database=MiDbLocal;User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True
+    depends_on:
+      - db # Le dice a Docker que inicie 'db' antes que 'api'
+
+  # Servicio 2: SQL Server
+  db:
+    image: "mcr.microsoft.com/mssql/server:2022-latest"
+    container_name: mssql-local
+    ports:
+      # Mapea el puerto 1433 local para que podamos conectarnos con SSMS o Azure Data Studio
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${DB_PASSWORD} # Usamos una variable de entorno para la contraseña
